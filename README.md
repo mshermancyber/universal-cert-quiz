@@ -75,15 +75,3 @@ TOTAL_QUESTIONS=90, SCORED_QUESTIONS=85, UNSCORED_QUESTIONS=5, TIME_MINUTES=90, 
 TOTAL_QUESTIONS=125, SCORED_QUESTIONS=100, UNSCORED_QUESTIONS=25, TIME_MINUTES=240, PASS_SCORE=700
 
 ---
-
-## Deploy to GitHub Pages
-
-```bash
-git add .
-git commit -m "v2 - universal exam simulator"
-git push origin main
-```
-
-Then Settings → Pages → Branch: main → Save.
-
-URL: https://mshermancyber.github.io/aws-quiz-trainer
