@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#00e6ff">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="QuizTrainer">
+  <meta name="description" content="Universal Certification Exam Simulator">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <title>Cert Quiz Trainer</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    :root {
+      --bg:      #08080f;
+      --bg2:     #0e0e1c;
+      --bg3:     #14142a;
+      --bg4:     #1a1a30;
+      --cyan:    #00e6ff;
+      --magenta: #dc00c8;
+      --green:   #39ff14;
+      --yellow:  #ffe600;
+      --red:     #ff3250;
+      --text:    #dcdcf0;
+      --dim:     #8888aa;
+      --border:  rgba(0,200,220,0.18);
+      --radius:  10px;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bot: env(safe-area-inset-bottom, 0px);
+    }
+    html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Courier New', monospace; font-size: 14px; overflow: hidden; user-select: none; -webkit-user-select: none; }
+    .screen { display: none; flex-direction: column; height: 100dvh; overflow: hidden; }
+    .screen.active { display: flex; }
+    .scroll { overflow-y: auto; -webkit-overflow-scrolling: touch; flex: 1; }
+    .scroll::-webkit-scrollbar { width: 3px; }
+    .scroll::-webkit-scrollbar-thumb { background: var(--cyan); border-radius: 3px; }
+
+    /* ── Welcome ────────────────────────────────────────────────── */
+    #welcome-screen { justify-content: center; align-items: center; padding: calc(16px + var(--safe-top)) 16px calc(16px + var(--safe-bot)); }
+    .welcome-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px 20px; width: 100%; max-width: 440px; }
+
+    .logo-row { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 4px; }
+    .logo-glyph { font-size: 32px; color: var(--cyan); text-shadow: 0 0 20px var(--cyan); }
+    .welcome-title { font-size: 18px; font-weight: bold; color: var(--cyan); letter-spacing: 3px; text-shadow: 0 0 12px var(--cyan); }
+    .welcome-sub { text-align: center; font-size: 10px; color: var(--magenta); letter-spacing: 2px; margin-bottom: 18px; }
+
+    /* File Drop Zone */
+    .file-zone {
+      border: 2px dashed var(--bg4);
+      border-radius: var(--radius);
+      padding: 18px 14px;
+      text-align: center;
+      margin-bottom: 14px;
+      cursor: pointer;
+      transition: border-color 0.2s;
+      position: relative;
+    }
+    .file-zone:hover, .file-zone.dragover { border-color: var(--cyan); }
+    .file-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+    .file-icon { font-size: 28px; margin-bottom: 6px; }
+    .file-zone-label { font-size: 12px; color: var(--dim); margin-bottom: 4px; }
+    .file-zone-sub { font-size: 10px; color: var(--bg4); }
+    #file-status { font-size: 11px; color: var(--dim); margin-top: 6px; min-height: 16px; word-break: break-all; }
+
+    /* Test Info (shown after load) */
+    .test-info-panel { display: none; margin-bottom: 14px; }
+    .test-info-panel.visible { display: block; }
+    .test-name-row { text-align: center; margin-bottom: 10px; }
+    #welcome-test-name { font-size: 15px; font-weight: bold; color: var(--cyan); display: block; }
+    #welcome-test-code { font-size: 11px; color: var(--magenta); letter-spacing: 2px; }
+
+    .info-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 10px; }
+    .info-item { background: var(--bg3); border: 1px solid var(--bg4); border-radius: 6px; padding: 8px 5px; text-align: center; }
+    .info-val { font-size: 16px; font-weight: bold; color: var(--cyan); }
+    .info-lbl { font-size: 9px; color: var(--dim); letter-spacing: 1px; margin-top: 2px; }
+
+    #domain-list { margin-bottom: 4px; }
+    .domain-chip { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; background: var(--bg3); border-radius: 5px; margin-bottom: 4px; font-size: 11px; }
+    .domain-chip .pct { color: var(--yellow); font-weight: bold; font-size: 11px; }
+
+    .divider { border: none; border-top: 1px solid var(--bg4); margin: 14px 0; }
+
+    #install-btn { display: none; align-items: center; justify-content: center; gap: 6px; width: 100%; padding: 10px; background: var(--bg3); border: 1px dashed var(--cyan); border-radius: var(--radius); color: var(--cyan); font-family: inherit; font-size: 12px; cursor: pointer; margin-bottom: 8px; }
+
+    /* Buttons */
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 12px 18px; border-radius: var(--radius); font-family: inherit; font-size: 14px; font-weight: bold; letter-spacing: 1px; cursor: pointer; border: 1px solid; transition: background 0.15s, transform 0.1s; -webkit-appearance: none; width: 100%; }
+    .btn:active { transform: scale(0.97); }
+    .btn:disabled, .btn.disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+    .btn-primary   { background: rgba(0,230,255,0.1);   border-color: var(--cyan);    color: var(--cyan); }
+    .btn-start     { background: rgba(57,255,20,0.12);  border-color: var(--green);   color: var(--green); font-size: 15px; padding: 14px; }
+    .btn-secondary { background: rgba(136,136,170,0.1); border-color: var(--dim);     color: var(--dim); }
+    .btn-danger    { background: rgba(255,50,80,0.12);  border-color: var(--red);     color: var(--red); }
+    .btn-magenta   { background: rgba(220,0,200,0.1);   border-color: var(--magenta); color: var(--magenta); }
+
+    /* ── Exam Screen ────────────────────────────────────────────── */
+    #exam-screen { background: var(--bg); }
+    .topbar { display: flex; align-items: center; justify-content: space-between; padding: calc(var(--safe-top) + 10px) 14px 10px; background: var(--bg2); border-bottom: 1px solid var(--border); flex-shrink: 0; gap: 8px; }
+    .topbar-left { display: flex; align-items: center; gap: 8px; }
+    .menu-btn { background: none; border: 1px solid var(--bg4); border-radius: 6px; color: var(--dim); font-size: 18px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+    .q-counter { font-size: 13px; font-weight: bold; color: var(--yellow); }
+    #exam-test-name { font-size: 10px; color: var(--magenta); letter-spacing: 1px; }
+    .timer { font-size: 18px; font-weight: bold; color: var(--green); font-variant-numeric: tabular-nums; min-width: 70px; text-align: right; }
+    .timer.warn   { color: var(--yellow); }
+    .timer.danger { color: var(--red); animation: pulse 1s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.5} }
+    .progress-wrap { padding: 6px 14px; background: var(--bg2); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .progress-row  { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; font-size: 10px; color: var(--dim); }
+    .progress-track { height: 3px; background: var(--bg4); border-radius: 3px; overflow: hidden; }
+    #progress-bar { height: 100%; background: linear-gradient(90deg, var(--cyan), var(--magenta)); border-radius: 3px; transition: width 0.3s; width: 0%; }
+    .q-text-wrap { padding: 10px 14px 8px; flex-shrink: 0; }
+    #q-text { font-size: 14px; line-height: 1.6; color: var(--text); }
+    .options-wrap { flex: 1; overflow-y: auto; padding: 0 14px; -webkit-overflow-scrolling: touch; }
+    .opt-btn { display: flex; align-items: flex-start; gap: 10px; width: 100%; padding: 13px 14px; margin-bottom: 8px; background: var(--bg2); border: 1px solid var(--bg4); border-radius: var(--radius); color: var(--text); font-family: inherit; font-size: 13px; text-align: left; cursor: pointer; line-height: 1.5; transition: border-color 0.15s, background 0.15s; -webkit-appearance: none; }
+    .opt-btn.selected { border-color: var(--cyan); background: rgba(0,230,255,0.08); }
+    .opt-letter { font-weight: bold; color: var(--cyan); min-width: 18px; flex-shrink: 0; }
+    .opt-text { flex: 1; }
+    .bottom-nav { display: flex; gap: 8px; padding: 10px 14px calc(10px + var(--safe-bot)); background: var(--bg2); border-top: 1px solid var(--border); flex-shrink: 0; }
+    .nav-action-btn { flex: 1; padding: 11px 6px; background: var(--bg3); border: 1px solid var(--bg4); border-radius: 8px; color: var(--dim); font-family: inherit; font-size: 12px; font-weight: bold; cursor: pointer; text-align: center; }
+    .nav-action-btn:active { opacity: 0.7; }
+    #btn-flag { color: var(--yellow); border-color: rgba(255,230,0,0.3); }
+    #btn-flag.flagged { background: rgba(255,230,0,0.12); border-color: var(--yellow); }
+    #btn-next { color: var(--cyan); border-color: rgba(0,230,255,0.3); flex: 1.5; }
+    #btn-finish-exam { flex: 1; padding: 11px 6px; background: rgba(57,255,20,0.1); border: 1px solid rgba(57,255,20,0.4); border-radius: 8px; color: var(--green); font-family: inherit; font-size: 11px; font-weight: bold; cursor: pointer; }
+
+    /* ── Sidebar ─────────────────────────────────────────────────── */
+    #sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; }
+    #sidebar-overlay.active { display: block; }
+    #sidebar { position: fixed; top: 0; left: -280px; width: 280px; height: 100%; background: var(--bg2); border-right: 1px solid var(--border); z-index: 101; transition: left 0.25s ease; display: flex; flex-direction: column; padding-top: var(--safe-top); }
+    #sidebar.open { left: 0; }
+    .sidebar-header { padding: 16px; border-bottom: 1px solid var(--bg4); display: flex; justify-content: space-between; align-items: center; }
+    .sidebar-title { color: var(--cyan); font-size: 13px; letter-spacing: 2px; }
+    .close-btn { background: none; border: none; color: var(--dim); font-size: 20px; cursor: pointer; padding: 4px; }
+    .sidebar-legend { padding: 10px 16px; border-bottom: 1px solid var(--bg4); display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 10px; }
+    .leg { display: flex; align-items: center; gap: 6px; color: var(--dim); }
+    .leg-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+    #nav-grid { flex: 1; overflow-y: auto; padding: 12px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; align-content: start; }
+    .nav-btn { aspect-ratio: 1; background: var(--bg3); border: 1px solid var(--bg4); border-radius: 5px; color: var(--dim); font-family: inherit; font-size: 11px; font-weight: bold; cursor: pointer; }
+    .nav-btn.answered { background: rgba(57,255,20,0.15); border-color: rgba(57,255,20,0.4); color: var(--green); }
+    .nav-btn.flagged  { background: rgba(255,230,0,0.15);  border-color: rgba(255,230,0,0.4);  color: var(--yellow); }
+    .nav-btn.current  { background: var(--cyan); border-color: var(--cyan); color: var(--bg); }
+    .sidebar-submit { padding: 12px 16px calc(12px + var(--safe-bot)); border-top: 1px solid var(--bg4); }
+
+    /* ── Review (pre-submit) ─────────────────────────────────────── */
+    .screen-title { font-size: 14px; font-weight: bold; color: var(--cyan); letter-spacing: 2px; }
+    .back-btn { background: none; border: none; color: var(--dim); font-family: inherit; font-size: 13px; cursor: pointer; padding: 4px; }
+    .review-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 16px; }
+    .stat-card { background: var(--bg2); border: 1px solid var(--bg4); border-radius: 8px; padding: 12px 8px; text-align: center; }
+    .stat-val { font-size: 28px; font-weight: bold; }
+    .stat-lbl { font-size: 10px; color: var(--dim); letter-spacing: 1px; margin-top: 3px; }
+    .sv-green { color: var(--green); }.sv-red { color: var(--red); }.sv-yellow { color: var(--yellow); }
+    .unanswered-section { padding: 0 16px 16px; }
+    .unanswered-section h3 { font-size: 11px; color: var(--magenta); letter-spacing: 2px; margin-bottom: 10px; }
+    .unanswered-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+    .unanswered-btn { padding: 6px 10px; background: rgba(255,50,80,0.12); border: 1px solid rgba(255,50,80,0.4); border-radius: 5px; color: var(--red); font-family: inherit; font-size: 11px; font-weight: bold; cursor: pointer; }
+    .review-actions { padding: 12px 16px calc(12px + var(--safe-bot)); display: flex; flex-direction: column; gap: 8px; }
+
+    /* ── Results ─────────────────────────────────────────────────── */
+    .results-hero { background: var(--bg2); padding: 20px; text-align: center; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .result-test-label { font-size: 10px; color: var(--magenta); letter-spacing: 2px; margin-bottom: 6px; }
+    .result-status { font-size: 48px; font-weight: 900; letter-spacing: 6px; }
+    .result-status.pass { color: var(--green); text-shadow: 0 0 20px var(--green); }
+    .result-status.fail { color: var(--red);   text-shadow: 0 0 20px var(--red); }
+    .result-score-big { font-size: 22px; font-weight: bold; color: var(--cyan); margin: 4px 0 2px; }
+    .result-threshold { font-size: 11px; color: var(--dim); }
+    .pass-note { font-size: 12px; margin-top: 6px; }
+    .pass-note.pass { color: var(--green); }.pass-note.fail { color: var(--dim); }
+    .result-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 14px 14px 0; }
+    .rstat { background: var(--bg2); border: 1px solid var(--bg4); border-radius: 8px; padding: 10px 6px; text-align: center; }
+    .rstat-val { font-size: 18px; font-weight: bold; }
+    .rstat-lbl { font-size: 9px; color: var(--dim); letter-spacing: 1px; margin-top: 2px; }
+    #domain-breakdown { padding: 14px; }
+    #domain-breakdown h3 { font-size: 11px; color: var(--magenta); letter-spacing: 2px; margin-bottom: 10px; }
+    .domain-row { display: grid; grid-template-columns: 1fr 44px 80px 34px; align-items: center; gap: 6px; padding: 6px 0; border-bottom: 1px solid var(--bg4); font-size: 11px; }
+    .domain-name  { color: var(--dim); font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .domain-score { color: var(--yellow); text-align: right; }
+    .domain-bar-wrap { height: 5px; background: var(--bg4); border-radius: 3px; overflow: hidden; }
+    .domain-bar { height: 100%; background: linear-gradient(90deg, var(--cyan), var(--magenta)); border-radius: 3px; }
+    .domain-pct { color: var(--dim); text-align: right; font-size: 10px; }
+    .results-actions { padding: 12px 14px calc(12px + var(--safe-bot)); display: flex; flex-direction: column; gap: 8px; }
+
+    /* ── Answer Review ───────────────────────────────────────────── */
+    .review-card { margin: 0 12px 10px; background: var(--bg2); border-left: 3px solid var(--bg4); border-radius: var(--radius); padding: 13px; }
+    .review-card.correct { border-left-color: var(--green); }
+    .review-card.wrong   { border-left-color: var(--red); }
+    .review-card.unscored{ border-left-color: var(--yellow); opacity: .85; }
+    .review-card-header  { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
+    .review-qnum   { font-size: 10px; color: var(--dim); }
+    .review-domain { font-size: 10px; color: var(--magenta); flex: 1; }
+    .review-badge  { font-size: 9px; padding: 2px 7px; border-radius: 3px; font-weight: bold; letter-spacing: 1px; }
+    .badge-correct  { background: rgba(57,255,20,0.15);  color: var(--green);  border: 1px solid rgba(57,255,20,0.3); }
+    .badge-wrong    { background: rgba(255,50,80,0.15);  color: var(--red);    border: 1px solid rgba(255,50,80,0.3); }
+    .badge-unscored { background: rgba(255,230,0,0.15);  color: var(--yellow); border: 1px solid rgba(255,230,0,0.3); }
+    .badge-skip     { background: rgba(136,136,170,0.15);color: var(--dim);    border: 1px solid rgba(136,136,170,0.3); }
+    .review-qtext  { font-size: 12px; line-height: 1.5; color: var(--text); margin-bottom: 10px; }
+    .review-opts   { display: flex; flex-direction: column; gap: 4px; }
+    .review-opt    { font-size: 12px; padding: 7px 10px; border-radius: 5px; border: 1px solid transparent; line-height: 1.4; }
+    .opt-correct   { background: rgba(57,255,20,0.1);  border-color: rgba(57,255,20,0.3);  color: var(--green); }
+    .opt-wrong     { background: rgba(255,50,80,0.1);  border-color: rgba(255,50,80,0.3);  color: var(--red); }
+    .review-opt:not(.opt-correct):not(.opt-wrong) { color: var(--dim); }
+    .review-explanation { margin-top: 8px; padding: 8px 10px; background: var(--bg); border-radius: 5px; border-left: 2px solid rgba(0,230,255,0.3); font-size: 11px; color: var(--dim); line-height: 1.5; }
+    .exp-label { display: block; color: var(--cyan); font-size: 9px; letter-spacing: 2px; margin-bottom: 3px; }
+    .answer-review-top { padding: 10px 12px 0; }
+
+    /* ── Modal ───────────────────────────────────────────────────── */
+    #modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 200; align-items: center; justify-content: center; padding: 20px; }
+    #modal-overlay.active { display: flex; }
+    .modal { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px 20px; width: 100%; max-width: 380px; }
+    .modal h2 { color: var(--cyan); font-size: 15px; letter-spacing: 2px; margin-bottom: 10px; }
+    .modal p  { color: var(--text); font-size: 12px; line-height: 1.6; margin-bottom: 18px; white-space: pre-line; }
+    #modal-buttons { display: flex; flex-direction: column; gap: 8px; }
+  </style>
+</head>
+<body>
+
+<!-- ═══ WELCOME ════════════════════════════════════════════════════════════ -->
+<div id="welcome-screen" class="screen active">
+  <div class="welcome-card">
+
+    <div class="logo-row">
+      <span class="logo-glyph">◈</span>
+      <span class="welcome-title">CERT QUIZ TRAINER</span>
+    </div>
+    <div class="welcome-sub">UNIVERSAL EXAM SIMULATOR</div>
+
+    <!-- File Drop Zone -->
+    <div class="file-zone" id="file-zone">
+      <input type="file" accept=".csv" onchange="handleFileLoad(event)">
+      <div class="file-icon">📂</div>
+      <div class="file-zone-label">Tap to select question bank (.csv)</div>
+      <div class="file-zone-sub">Works with any cert: AWS, CISSP, CISM, Sec+...</div>
+    </div>
+    <div id="file-status">No file loaded</div>
+
+    <!-- Test Info (revealed after file load) -->
+    <div class="test-info-panel" id="test-info-panel">
+      <hr class="divider">
+      <div class="test-name-row">
+        <span id="welcome-test-name">---</span>
+        <span id="welcome-test-code">---</span>
+      </div>
+      <div class="info-grid">
+        <div class="info-item"><div class="info-val" id="info-questions">--</div><div class="info-lbl">QUESTIONS</div></div>
+        <div class="info-item"><div class="info-val" id="info-time">--</div><div class="info-lbl">TIME</div></div>
+        <div class="info-item"><div class="info-val" id="info-pass">--</div><div class="info-lbl">PASS SCORE</div></div>
+        <div class="info-item"><div class="info-val" id="info-pool">--</div><div class="info-lbl">POOL SIZE</div></div>
+      </div>
+      <div id="domain-list"></div>
+    </div>
+
+    <hr class="divider">
+
+    <button id="install-btn" onclick="installPWA()">📲 Add to Home Screen</button>
+    <button class="btn btn-start disabled" id="btn-start" onclick="startExam()" disabled>▶ START EXAM</button>
+  </div>
+</div>
+
+<!-- ═══ EXAM ════════════════════════════════════════════════════════════════ -->
+<div id="exam-screen" class="screen">
+  <div class="topbar">
+    <div class="topbar-left">
+      <button class="menu-btn" onclick="toggleSidebar()">☰</button>
+      <div>
+        <div class="q-counter" id="q-counter">Q 1 / --</div>
+        <div id="exam-test-name"></div>
+      </div>
+    </div>
+    <div class="timer" id="timer">--:--</div>
+  </div>
+
+  <div class="progress-wrap">
+    <div class="progress-row">
+      <span id="progress-text">0 answered</span>
+      <span style="color:var(--magenta);font-size:10px" id="q-domain">DOMAIN</span>
+    </div>
+    <div class="progress-track"><div id="progress-bar"></div></div>
+  </div>
+
+  <div class="q-text-wrap"><div id="q-text">Loading...</div></div>
+  <div class="options-wrap" id="options"></div>
+
+  <div class="bottom-nav">
+    <button class="nav-action-btn" id="btn-prev" onclick="prevQ()">◀ Prev</button>
+    <button class="nav-action-btn" id="btn-flag" onclick="toggleFlag()">⚑ Flag</button>
+    <button class="nav-action-btn" id="btn-next" onclick="nextQ()">Next ▶</button>
+    <button id="btn-finish-exam" onclick="showReviewScreen()">✓ Finish</button>
+  </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar-overlay" onclick="closeSidebar()"></div>
+<div id="sidebar">
+  <div class="sidebar-header">
+    <span class="sidebar-title">QUESTION MAP</span>
+    <button class="close-btn" onclick="closeSidebar()">✕</button>
+  </div>
+  <div class="sidebar-legend">
+    <div class="leg"><div class="leg-dot" style="background:var(--cyan)"></div>Current</div>
+    <div class="leg"><div class="leg-dot" style="background:var(--green)"></div>Answered</div>
+    <div class="leg"><div class="leg-dot" style="background:var(--yellow)"></div>Flagged</div>
+    <div class="leg"><div class="leg-dot" style="background:var(--bg4)"></div>Unanswered</div>
+  </div>
+  <div id="nav-grid"></div>
+  <div class="sidebar-submit">
+    <button class="btn btn-danger" onclick="closeSidebar(); showReviewScreen();">✓ Review &amp; Submit</button>
+  </div>
+</div>
+
+<!-- ═══ PRE-SUBMIT REVIEW ═══════════════════════════════════════════════════ -->
+<div id="review-screen" class="screen">
+  <div class="topbar">
+    <button class="back-btn" onclick="backToExam()">◀ Back</button>
+    <span class="screen-title">REVIEW</span>
+    <div class="timer" id="timer-review">--:--</div>
+  </div>
+  <div class="scroll">
+    <div class="review-stats">
+      <div class="stat-card"><div class="stat-val sv-green" id="review-answered">0</div><div class="stat-lbl">ANSWERED</div></div>
+      <div class="stat-card"><div class="stat-val sv-red"   id="review-unanswered">0</div><div class="stat-lbl">UNANSWERED</div></div>
+      <div class="stat-card"><div class="stat-val sv-yellow" id="review-flagged">0</div><div class="stat-lbl">FLAGGED</div></div>
+    </div>
+    <div class="unanswered-section">
+      <h3>UNANSWERED QUESTIONS</h3>
+      <div class="unanswered-grid" id="unanswered-list"></div>
+    </div>
+  </div>
+  <div class="review-actions">
+    <button class="btn btn-secondary" onclick="backToExam()">◀ Back to Exam</button>
+    <button class="btn btn-danger"    onclick="submitExam()">✓ Submit Exam</button>
+  </div>
+</div>
+
+<!-- ═══ RESULTS ══════════════════════════════════════════════════════════════ -->
+<div id="results-screen" class="screen">
+  <div class="topbar">
+    <span class="screen-title">RESULTS</span>
+  </div>
+  <div class="scroll">
+    <div class="results-hero">
+      <div class="result-test-label" id="result-test-name"></div>
+      <div class="result-status" id="result-status">---</div>
+      <div class="result-score-big" id="result-score">--- / 1000</div>
+      <div class="result-threshold" id="result-pass-threshold"></div>
+      <div class="pass-note" id="result-pass-note"></div>
+    </div>
+    <div class="result-grid">
+      <div class="rstat"><div class="rstat-val" style="color:var(--yellow)"   id="result-correct">--/--</div><div class="rstat-lbl">CORRECT</div></div>
+      <div class="rstat"><div class="rstat-val" style="color:var(--magenta)"  id="result-pct">--%</div><div class="rstat-lbl">ACCURACY</div></div>
+      <div class="rstat"><div class="rstat-val" style="color:#aaaaff"         id="result-time">--:--</div><div class="rstat-lbl">TIME USED</div></div>
+    </div>
+    <div id="domain-breakdown"></div>
+  </div>
+  <div class="results-actions">
+    <button class="btn btn-primary"   onclick="showAnswerReview()">📖 Review Answers</button>
+    <button class="btn btn-magenta"   onclick="exportResults()">💾 Export Report</button>
+    <button class="btn btn-start"     onclick="startExam()">▶ Retake Exam</button>
+    <button class="btn btn-secondary" onclick="show('welcome-screen')">📂 Load New Test</button>
+  </div>
+</div>
+
+<!-- ═══ ANSWER REVIEW ════════════════════════════════════════════════════════ -->
+<div id="answer-review-screen" class="screen">
+  <div class="topbar">
+    <button class="back-btn" onclick="backToResults()">◀ Results</button>
+    <span class="screen-title">ANSWER REVIEW</span>
+    <button class="btn btn-magenta" style="width:auto;padding:6px 10px;font-size:11px" onclick="exportResults()">Export</button>
+  </div>
+  <div class="scroll answer-review-top">
+    <div id="review-questions"></div>
+  </div>
+</div>
+
+<!-- ═══ MODAL ════════════════════════════════════════════════════════════════ -->
+<div id="modal-overlay">
+  <div class="modal">
+    <h2 id="modal-title"></h2>
+    <p  id="modal-message"></p>
+    <div id="modal-buttons"></div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+<script>
+  // Show test info panel once file is loaded successfully
+  const _origHandle = handleFileLoad;
+  window.handleFileLoad = function(e) {
+    _origHandle(e);
+    setTimeout(() => {
+      const loaded = document.getElementById('btn-start').disabled === false;
+      document.getElementById('test-info-panel').classList.toggle('visible', loaded);
+    }, 100);
+  };
+</script>
+</body>
+</html>

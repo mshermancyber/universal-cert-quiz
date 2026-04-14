@@ -1,0 +1,26 @@
+{
+  "name": "AWS Quiz Trainer",
+  "short_name": "AWSQuiz",
+  "description": "AWS CLF-C02 Cloud Practitioner Exam Simulator",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#08080f",
+  "theme_color": "#00e6ff",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["education", "productivity"],
+  "screenshots": []
+}
